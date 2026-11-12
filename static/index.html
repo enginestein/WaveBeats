@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f3eee3" />
+  <title>WaveBeats — graph paper synthesizer</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="masthead">
+      <div class="masthead-top">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 36 36">
+              <path d="M4 27V11M10 27V15M16 27V7M22 27V17M28 27V13M34 27V19"
+                    fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"/>
+              <circle cx="16" cy="7" r="2.6" fill="var(--accent)" />
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <h1>WaveBeats</h1>
+            <p>x = time · y = pitch</p>
+          </div>
+        </div>
+
+        <div class="actions">
+        <button id="undo" class="icon-btn" title="Undo (Ctrl+Z)" aria-label="Undo">
+          <svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h9a6 6 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="redo" class="icon-btn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+          <svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5M20 12h-9a6 6 0 0 0 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="clear" class="text-btn" title="Clear the canvas">Clear</button>
+        <div class="menu-wrap">
+          <button id="exportBtn" class="text-btn" aria-haspopup="true" aria-expanded="false">
+            Export
+            <svg viewBox="0 0 24 24" class="chev"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <div id="exportMenu" class="menu" role="menu" hidden>
+            <button data-export="wav" role="menuitem"><b>WAV audio</b><small>44.1 kHz stereo mix</small></button>
+            <button data-export="music" role="menuitem"><b>.music score</b><small>play it with the music CLI</small></button>
+            <button data-export="project" role="menuitem"><b>Project JSON</b><small>reopen it later</small></button>
+            <button data-export="load" role="menuitem"><b>Open project…</b><small>load a .json sketch</small></button>
+            <button data-export="demo" role="menuitem"><b>Load demo</b><small>four working voices</small></button>
+            <button data-export="plot" role="menuitem"><b>Plot math…</b><small>plot a function y=f(x)</small></button>
+            <button data-export="import" role="menuitem"><b>Import file</b><small>.music / MIDI / MP3</small></button>
+          </div>
+        </div>
+          <button id="play" class="play-btn" title="Play / stop (Space)">
+            <span class="play-icon" aria-hidden="true"></span>
+            <span class="play-label">Play</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings" aria-label="Song settings">
+        <div class="setting-group song-settings">
+          <label class="field compact">
+            <span>Tempo</span>
+            <span class="unit-input"><input id="tempo" type="number" min="40" max="220" step="1" value="96" /><em>bpm</em></span>
+          </label>
+          <label class="field compact">
+            <span>Key</span>
+            <select id="key"></select>
+          </label>
+          <label class="field compact">
+            <span>Scale</span>
+            <select id="scale"></select>
+          </label>
+          <label class="field compact bars-field">
+            <span>Bars</span>
+            <input id="bars" type="number" min="1" max="128" step="1" value="4" />
+          </label>
+          <label class="field compact">
+            <span>Snap</span>
+            <select id="snap">
+              <option value="0.125">1/32</option>
+              <option value="0.25">1/16</option>
+              <option value="0.5" selected>1/8</option>
+              <option value="1">1/4</option>
+            </select>
+          </label>
+          <label class="field compact">
+            <span>Beat</span>
+            <select id="drums"></select>
+          </label>
+          <label class="field compact length-field">
+            <span>Length <b id="lengthVal">0:10</b></span>
+            <span class="unit-input"><input id="length" type="number" min="1" max="600" step="1" value="10" /><em>sec</em></span>
+          </label>
+        </div>
+
+        <div class="setting-group mix-settings">
+          <label class="slider-field">
+            <span>Reverb <b id="reverbVal">18%</b></span>
+            <input id="masterReverb" type="range" min="0" max="1" step="0.01" value="0.18" />
+          </label>
+          <label class="slider-field">
+            <span>Echo <b id="delayVal">12%</b></span>
+            <input id="masterDelay" type="range" min="0" max="1" step="0.01" value="0.12" />
+          </label>
+          <label class="slider-field">
+            <span>Volume <b id="volVal">90%</b></span>
+            <input id="masterVol" type="range" min="0.1" max="1" step="0.01" value="0.9" />
+          </label>
+          <label class="check-field">
+            <input id="humanize" type="checkbox" checked />
+            <span>Humanize</span>
+          </label>
+          <label class="check-field">
+            <input id="loop" type="checkbox" />
+            <span>Loop</span>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="rail rail-left">
+        <section class="panel">
+          <h2 class="panel-title"><span>01</span>Pen</h2>
+          <label class="field">
+            <span>New strokes use</span>
+            <select id="newInstrument">
+              <option value="auto">Auto by pitch</option>
+            </select>
+          </label>
+          <p class="hint">
+            Drag to draw a voice. Drag a line to move it.
+            Hold <kbd>Shift</kbd> to keep drawing over a line.
+          </p>
+        </section>
+
+        <section class="panel generator-panel">
+          <h2 class="panel-title"><span>02</span>Generator</h2>
+          <div class="two-up">
+            <label class="field">
+              <span>Voices <b id="genVoicesVal">3</b></span>
+              <input id="genVoices" type="range" min="1" max="8" step="1" value="3" />
+            </label>
+            <label class="field">
+              <span>Density <b id="genDensityVal">55%</b></span>
+              <input id="genDensity" type="range" min="0.15" max="1" step="0.05" value="0.55" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Motion</span>
+            <select id="genMotion">
+              <option value="melodic">Melodic line</option>
+              <option value="arpeggio">Arpeggio</option>
+              <option value="steps">Stair steps</option>
+              <option value="scatter">Scatter</option>
+              <option value="wave">Wave</option>
+              <option value="random-walk">Random walk</option>
+              <option value="chords">Chord stabs</option>
+              <option value="ostinato">Ostinato</option>
+              <option value="drone">Drone</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Register</span>
+            <select id="genRegister">
+              <option value="mixed">Mixed registers</option>
+              <option value="full">Spread across range</option>
+              <option value="low">Low</option>
+              <option value="mid">Middle</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Bassline</span>
+            <select id="genBass">
+              <option value="off">Off</option>
+              <option value="pulse">Root pulse</option>
+              <option value="walk">Walking</option>
+              <option value="octave">Octaves</option>
+              <option value="arp">Bass arpeggio</option>
+              <option value="acid">Acid</option>
+              <option value="sub">Sub sustain</option>
+            </select>
+          </label>
+          <label class="slider-field">
+            <span>Complexity <b id="genComplexityVal">50%</b></span>
+            <input id="genComplexity" type="range" min="0" max="1" step="0.05" value="0.5" />
+          </label>
+          <label class="check-field">
+            <input id="genAuto" type="checkbox" />
+            <span>Automatic (regenerate while playing)</span>
+          </label>
+          <label class="field">
+            <span>Every <b id="genAutoIntervalVal">8s</b></span>
+            <input id="genAutoInterval" type="range" min="3" max="30" step="1" value="8" />
+          </label>
+          <button id="generate" class="solid-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/></svg>
+            Generate sketch
+          </button>
+          <label class="check-field">
+            <input id="genPlay" type="checkbox" />
+            <span>Play when ready</span>
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title"><span>03</span>Plot Math</h2>
+          <label class="field">
+            <span>Function f(x)</span>
+            <input id="mathFunc" type="text" value="sin(x)" style="width:100%" />
+            <small>Use x for time, supported: sin, cos, tan, sqrt, abs, log, exp, pow, floor, ceil</small>
+          </label>
+          <label class="field compact">
+            <span>Min x (beats)</span>
+            <input id="mathMinX" type="number" min="0" value="0" style="width:50%" />
+          </label>
+          <label class="field compact">
+            <span>Max x (beats)</span>
+            <input id="mathMaxX" type="number" min="1" value="64" style="width:50%" />
+          </label>
+          <label class="field compact">
+            <span>Bars</span>
+            <select id="mathBars">
+              <option value="4">4</option>
+              <option value="8">8</option>
+              <option value="16">16</option>
+              <option value="32">32</option>
+            </select>
+          </label>
+          <button id="plotBtn" class="solid-btn" style="width:100%; margin-top:8px;">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/></svg>
+            Plot
+          </button>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title"><span>04</span>Import</h2>
+          <input id="fileInput" type="file"
+                 accept=".music,.mws,.mid,.midi,.mp3,.wav,.ogg,.flac,.m4a,.opus,.aac,.json"
+                 hidden />
+          <button id="importBtn" class="solid-btn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 17v3h14v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Browse files
+          </button>
+          <p class="hint">
+            Imports <b>.music</b>, MIDI, audio, or a WaveBeats
+            <b>.json</b> project. Imported notes keep their rests and timing.
+          </p>
+        </section>
+      </aside>
+
+      <section class="stage" id="stage">
+        <canvas id="canvas" aria-label="Music canvas. X is time, Y is pitch."></canvas>
+        <div id="emptyHint" class="empty-hint">
+          <span>Draw a line</span>
+          <small>A curve, a scribble, a graph — each one becomes a voice.</small>
+        </div>
+        <div id="statusPill" class="status-pill" hidden><i></i><span>rendering audio</span></div>
+        <div id="toast" class="toast" hidden></div>
+        <div class="transport">
+          <span id="timeLabel" class="time-label">0:00 / 0:00</span>
+          <div class="transport-bar"><div id="transportFill"></div></div>
+          <span id="noteLabel" class="note-label">0 notes</span>
+          <span id="renderLabel" class="render-label">ready</span>
+        </div>
+      </section>
+
+      <aside class="rail rail-right">
+        <section class="panel layers-panel">
+          <h2 class="panel-title"><span>05</span>Layers <b id="layerCount" class="count">0</b></h2>
+          <div id="layerList" class="layer-list">
+            <div class="empty-layers">Drawn voices appear here.</div>
+          </div>
+        </section>
+
+        <section id="selectionPanel" class="panel selected-panel" hidden>
+          <h2 class="panel-title"><span>06</span>Selected
+            <button id="deleteStroke" class="icon-btn danger" title="Delete (Del)" aria-label="Delete selected voice">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </h2>
+          <label class="field">
+            <span>Name</span>
+            <input id="selName" type="text" maxlength="40" placeholder="Lead" />
+          </label>
+          <label class="field">
+            <span>Instrument</span>
+            <select id="selInstrument"></select>
+          </label>
+          <label class="slider-field">
+            <span>Level <b id="selVolVal">55%</b></span>
+            <input id="selVolume" type="range" min="0" max="1" step="0.01" value="0.55" />
+          </label>
+          <label class="slider-field">
+            <span>Pan <b id="selPanVal">C</b></span>
+            <input id="selPan" type="range" min="-1" max="1" step="0.01" value="0" />
+          </label>
+          <label class="slider-field">
+            <span>Space <b id="selRevVal">12%</b></span>
+            <input id="selReverb" type="range" min="0" max="1" step="0.01" value="0.12" />
+          </label>
+          <label class="check-field">
+            <input id="selMute" type="checkbox" />
+            <span>Mute this voice</span>
+          </label>
+        </section>
+
+        <section class="panel shortcuts">
+          <h2 class="panel-title"><span>07</span>Keys</h2>
+          <div class="shortcut"><kbd>Space</kbd><span>play / stop</span></div>
+          <div class="shortcut"><kbd>G</kbd><span>generate</span></div>
+          <div class="shortcut"><kbd>Del</kbd><span>delete selected</span></div>
+          <div class="shortcut"><kbd>Ctrl</kbd><kbd>Z</kbd><span>undo</span></div>
+          <div class="shortcut"><kbd>Esc</kbd><span>deselect</span></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
